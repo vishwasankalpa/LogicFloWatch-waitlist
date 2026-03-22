@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Watch, Command, Radio, Zap, CheckCircle2, ArrowRight, PlayCircle } from 'lucide-react';
+import { Watch, Command, Radio, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function App() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  // 🎥 VIDEO SETUP:
+  // Using your Reddit post embed URL
+  const REDDIT_EMBED_URL = "https://www.redditmedia.com/r/LogicPro/comments/1rzoa3g/built_an_apple_watch_app_to_control_logic_pro/?ref_source=embed&ref=share&embed=true";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,15 +146,15 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
           >
-            <div className="relative aspect-video rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl group flex items-center justify-center">
-              {/* This is where they would put their Reddit video or a screenshot */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-zinc-900 to-zinc-800 opacity-50" />
-              <div className="relative z-10 flex flex-col items-center text-center p-6">
-                <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center mb-4 group-hover:scale-110 transition-transform cursor-pointer border border-white/20">
-                  <PlayCircle className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-zinc-400 font-medium">Watch the Demo</p>
-              </div>
+            <div className="relative w-full h-[500px] sm:h-[600px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl group flex items-center justify-center">
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={REDDIT_EMBED_URL}
+                title="LogicFlow Reddit Demo"
+                sandbox="allow-scripts allow-same-origin allow-popups"
+                style={{ border: 'none' }}
+                scrolling="no"
+              />
             </div>
           </motion.div>
         </section>
