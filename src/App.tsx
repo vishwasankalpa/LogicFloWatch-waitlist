@@ -1,226 +1,285 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import { motion } from 'framer-motion';
-import { Watch, Command, Radio, Zap, CheckCircle2, ArrowRight, PlayCircle } from 'lucide-react';
+import { Download, Sparkles, Key, Loader2, Apple } from 'lucide-react';
+import { cn } from './lib/utils';
+
+// Declare the aistudio global
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
 
 export default function App() {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const [hasKey, setHasKey] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [macLogo, setMacLogo] = useState<string | null>(null);
+  const [watchLogo, setWatchLogo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // 🎥 VIDEO SETUP:
-  // We removed the Reddit embed because the post was taken down.
-  // Upload your raw video file in the chat, or paste a YouTube ID here!
-  const YOUTUBE_ID = "FJCxSlh39Rg";
+  useEffect(() => {
+    checkApiKey();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    
-    setStatus('loading');
-    
-    try {
-      // Using the provided Formspree endpoint
-      const response = await fetch('https://formspree.io/f/xnjgyorn', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: email })
-      });
-
-      if (response.ok) {
-        setStatus('success');
-        setEmail('');
-      } else {
-        setStatus('idle');
-        alert('Oops! There was a problem submitting your email.');
-      }
-    } catch (error) {
-      setStatus('idle');
-      alert('Oops! There was a problem submitting your email.');
+  const checkApiKey = async () => {
+    if (window.aistudio?.hasSelectedApiKey) {
+      const selected = await window.aistudio.hasSelectedApiKey();
+      setHasKey(selected);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans overflow-x-hidden">
-      {/* Background Ambient Glow */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-500/10 blur-[120px]" />
-      </div>
+  const handleSelectKey = async () => {
+    if (window.aistudio?.openSelectKey) {
+      await window.aistudio.openSelectKey();
+      // Assume success to mitigate race conditions
+      setHasKey(true);
+    }
+  };
 
-      {/* Navigation */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Command className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">LogicFlow</span>
-        </div>
-        <a 
-          href="#waitlist" 
-          className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+  const generateLogos = async () => {
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      // Create a fresh instance to ensure it picks up the latest key
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+
+      // Common prompt elements
+      const basePrompt = "A modern, stylish, and eye-catching app icon for a professional music production Logic Pro controller. The design should subtly and elegantly reflect music production, such as a sleek minimal fader, a subtle waveform, or a modern control knob. The background should be a dark, rich charcoal or deep space gray, avoiding pure black so it doesn't blend into the display. Layered style, minimalist, adhering to Apple design guidelines. High quality, 3D subtle depth, vector-like precision. No text.";
+
+      // Generate Mac Logo
+      const macPromise = ai.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: {
+          parts: [{ text: `${basePrompt} Designed specifically for macOS, centered perfectly within a square frame.` }]
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "1:1",
+            imageSize: "1K"
+          }
+        }
+      });
+
+      // Generate Watch Logo
+      const watchPromise = ai.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: {
+          parts: [{ text: `${basePrompt} Designed specifically for watchOS, with the core design elements centered perfectly within a circular safe area.` }]
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "1:1",
+            imageSize: "1K"
+          }
+        }
+      });
+
+      const [macResponse, watchResponse] = await Promise.all([macPromise, watchPromise]);
+
+      // Extract Mac Image
+      const macPart = macResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (macPart?.inlineData) {
+        setMacLogo(`data:${macPart.inlineData.mimeType};base64,${macPart.inlineData.data}`);
+      }
+
+      // Extract Watch Image
+      const watchPart = watchResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (watchPart?.inlineData) {
+        setWatchLogo(`data:${watchPart.inlineData.mimeType};base64,${watchPart.inlineData.data}`);
+      }
+
+    } catch (err: any) {
+      console.error("Generation error:", err);
+      if (err.message?.includes("Requested entity was not found")) {
+        setHasKey(false);
+        setError("API Key not found or invalid. Please select your key again.");
+      } else {
+        setError(err.message || "Failed to generate logos. Please try again.");
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const downloadImage = (dataUrl: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (!hasKey) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full bg-[#141414] border border-white/10 rounded-2xl p-8 text-center shadow-2xl"
         >
-          Join Beta
-        </a>
-      </nav>
-
-      <main className="relative z-10">
-        {/* Hero Section */}
-        <section className="pt-24 pb-32 px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-medium text-cyan-400 mb-8">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                As seen on r/LogicPro
-              </span>
-              <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 leading-[1.1]">
-                Control Logic Pro <br className="hidden md:block" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
-                  from your wrist.
-                </span>
-              </h1>
-              <p className="text-lg md:text-xl text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-                The ultimate two-way Bluetooth MIDI controller for Apple Watch and Mac. 
-                Record, loop, mix, and control your DAW without ever touching your mouse.
-              </p>
-            </motion.div>
-
-            {/* Waitlist Form */}
-            <motion.div 
-              id="waitlist"
-              className="max-w-md mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              {status === 'success' ? (
-                <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">You're on the list!</h3>
-                  <p className="text-zinc-400 text-center text-sm">
-                    Keep an eye on your inbox. We'll send you a TestFlight invite as soon as the beta is ready.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-                  <div className="relative flex items-center bg-zinc-900 border border-zinc-800 rounded-2xl p-2 shadow-2xl">
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address"
-                      className="w-full bg-transparent border-none outline-none px-4 text-zinc-100 placeholder:text-zinc-500"
-                      disabled={status === 'loading'}
-                    />
-                    <button
-                      type="submit"
-                      disabled={status === 'loading'}
-                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-zinc-100 text-zinc-950 font-semibold hover:bg-white transition-colors disabled:opacity-50"
-                    >
-                      {status === 'loading' ? 'Joining...' : 'Join Beta'}
-                      {!status && <ArrowRight className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </form>
-              )}
-              <p className="text-xs text-zinc-500 mt-4 text-center">
-                No spam. Unsubscribe anytime.
-              </p>
-            </motion.div>
+          <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Key className="w-8 h-8 text-blue-400" />
           </div>
-        </section>
-
-        {/* Video/Mockup Placeholder */}
-        <section className="px-6 pb-32">
-          <motion.div 
-            className="max-w-5xl mx-auto"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
+          <h1 className="text-2xl font-semibold mb-3">API Key Required</h1>
+          <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+            To generate high-quality app icons using Gemini, you need to select your Google Cloud API key with billing enabled.
+          </p>
+          <button
+            onClick={handleSelectKey}
+            className="w-full bg-white text-black font-medium py-3 px-4 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
           >
-            <div className="relative w-full max-w-[340px] mx-auto aspect-[9/16] rounded-[2.5rem] overflow-hidden bg-zinc-900 border-[8px] border-zinc-800 shadow-2xl group flex items-center justify-center">
-              {YOUTUBE_ID ? (
-                <iframe
-                  className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${YOUTUBE_ID}?rel=0&autoplay=1&mute=1&loop=1&playlist=${YOUTUBE_ID}`}
-                  title="LogicFlow Demo"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
+            Select API Key
+          </button>
+          <p className="mt-4 text-xs text-gray-500">
+            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-gray-400">
+              Learn more about billing requirements
+            </a>
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-blue-500/30 font-sans">
+      <header className="border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="font-medium tracking-tight">LogicFlow Logo Studio</h1>
+          </div>
+          <button
+            onClick={generateLogos}
+            disabled={isGenerating}
+            className="bg-white text-black px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                Generate Icons
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-6 py-12">
+        <div className="mb-12 max-w-2xl">
+          <h2 className="text-4xl font-semibold tracking-tight mb-4">Craft your app identity.</h2>
+          <p className="text-gray-400 text-lg">
+            Generate pixel-perfect, Apple-compliant icons for your professional music production app. 
+            Designed for macOS and watchOS.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* macOS Icon Panel */}
+          <div className="bg-[#141414] border border-white/10 rounded-2xl p-8 flex flex-col items-center">
+            <div className="w-full flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Apple className="w-5 h-5" />
+                  macOS Icon
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">1024x1024 • Rounded Rectangle</p>
+              </div>
+              {macLogo && (
+                <button
+                  onClick={() => downloadImage(macLogo, 'macOS-Icon-1024.png')}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                  title="Download macOS Icon"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative w-64 h-64 flex items-center justify-center">
+              {macLogo ? (
+                <motion.img
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  src={macLogo}
+                  alt="macOS App Icon"
+                  className="w-full h-full object-cover shadow-2xl"
+                  style={{ borderRadius: '22.5%' }} // Apple's continuous curve approximation
                 />
               ) : (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-tr from-zinc-900 to-zinc-800 opacity-50" />
-                  <div className="relative z-10 flex flex-col items-center text-center p-6">
-                    <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center mb-4 group-hover:scale-110 transition-transform cursor-pointer border border-white/20">
-                      <PlayCircle className="w-8 h-8 text-white" />
-                    </div>
-                    <p className="text-zinc-400 font-medium">Demo Video Offline</p>
-                    <p className="text-zinc-500 text-sm mt-2 max-w-sm">
-                      (Upload your raw video file in the chat to replace this)
-                    </p>
-                  </div>
-                </>
+                <div className="w-full h-full border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-gray-500" style={{ borderRadius: '22.5%' }}>
+                  {isGenerating ? <Loader2 className="w-8 h-8 animate-spin mb-2" /> : <Apple className="w-8 h-8 mb-2 opacity-50" />}
+                  <span className="text-sm">{isGenerating ? 'Designing...' : 'Not generated'}</span>
+                </div>
               )}
             </div>
-          </motion.div>
-        </section>
-
-        {/* Features Grid */}
-        <section className="px-6 pb-32 border-t border-zinc-900 pt-32 bg-zinc-950/50">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for the modern studio.</h2>
-              <p className="text-zinc-400 max-w-2xl mx-auto">
-                Everything you need to capture inspiration the moment it strikes, right from your wrist.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              <FeatureCard 
-                icon={<Radio className="w-6 h-6 text-cyan-400" />}
-                title="Two-Way Sync"
-                description="Not just a remote. See your track names, transport status, and metronome state directly on your Apple Watch."
-              />
-              <FeatureCard 
-                icon={<Zap className="w-6 h-6 text-purple-400" />}
-                title="Zero Latency"
-                description="Custom Bluetooth MIDI implementation ensures your commands hit Logic Pro instantly. No Wi-Fi required."
-              />
-              <FeatureCard 
-                icon={<Watch className="w-6 h-6 text-emerald-400" />}
-                title="Tactile Control"
-                description="Use the Digital Crown to scrub the timeline or adjust faders. Tap to record, cycle, and undo."
-              />
+            
+            <div className="mt-8 text-center text-xs text-gray-500 max-w-xs">
+              The icon is generated as a square. The rounded corners are applied via CSS to preview how macOS will mask it.
             </div>
           </div>
-        </section>
+
+          {/* watchOS Icon Panel */}
+          <div className="bg-[#141414] border border-white/10 rounded-2xl p-8 flex flex-col items-center">
+            <div className="w-full flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Apple className="w-5 h-5" />
+                  watchOS Icon
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">1024x1024 • Circular Mask</p>
+              </div>
+              {watchLogo && (
+                <button
+                  onClick={() => downloadImage(watchLogo, 'watchOS-Icon-1024.png')}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                  title="Download watchOS Icon"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative w-64 h-64 flex items-center justify-center">
+              {watchLogo ? (
+                <motion.img
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  src={watchLogo}
+                  alt="watchOS App Icon"
+                  className="w-full h-full object-cover shadow-2xl rounded-full"
+                />
+              ) : (
+                <div className="w-full h-full border-2 border-dashed border-white/20 rounded-full flex flex-col items-center justify-center text-gray-500">
+                  {isGenerating ? <Loader2 className="w-8 h-8 animate-spin mb-2" /> : <Apple className="w-8 h-8 mb-2 opacity-50" />}
+                  <span className="text-sm">{isGenerating ? 'Designing...' : 'Not generated'}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 text-center text-xs text-gray-500 max-w-xs">
+              The icon is generated as a square. The circular mask is applied via CSS to preview how watchOS will display it.
+            </div>
+          </div>
+        </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-zinc-900 py-12 px-6 text-center text-zinc-500 text-sm">
-        <p>© {new Date().getFullYear()} LogicFlow. Built by a producer, for producers.</p>
-      </footer>
-    </div>
-  );
-}
-
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
-  return (
-    <div className="p-8 rounded-3xl bg-zinc-900/40 border border-zinc-800/50 hover:bg-zinc-900/80 transition-colors">
-      <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center mb-6">
-        {icon}
-      </div>
-      <h3 className="text-xl font-semibold mb-3 text-zinc-100">{title}</h3>
-      <p className="text-zinc-400 leading-relaxed">{description}</p>
     </div>
   );
 }
