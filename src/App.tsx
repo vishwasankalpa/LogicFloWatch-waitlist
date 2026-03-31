@@ -68,8 +68,16 @@ export default function App() {
       {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-5xl mx-auto border-b border-white/10">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('landing')}>
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Command className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 rounded-xl bg-zinc-900 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden relative border border-zinc-800">
+            <img 
+              src="/app-icon.png" 
+              alt="LogicFlow" 
+              className="w-full h-full object-cover absolute inset-0 z-10"
+              onError={(e) => {
+                e.currentTarget.style.opacity = '0';
+              }}
+            />
+            <Command className="w-5 h-5 text-cyan-400 absolute z-0" />
           </div>
           <span className="text-xl font-bold tracking-tight">LogicFlow</span>
         </div>
@@ -168,6 +176,25 @@ export default function App() {
                     Join 2,400+ producers waiting for early access.
                   </p>
                 </div>
+
+                {/* Video Preview */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.2 }}
+                  className="mt-24 max-w-[320px] mx-auto"
+                >
+                  <div className="relative aspect-[9/16] rounded-[3rem] overflow-hidden bg-zinc-900 border-[8px] border-zinc-800 shadow-2xl shadow-cyan-500/20">
+                    <iframe
+                      className="absolute inset-0 w-full h-full"
+                      src="https://www.youtube.com/embed/FJCxSlh39Rg?autoplay=1&mute=1&loop=1&playlist=FJCxSlh39Rg&controls=0"
+                      title="LogicFlow Demo"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                  <p className="text-zinc-500 text-sm mt-6 font-medium">Watch LogicFlow in action</p>
+                </motion.div>
               </section>
 
               {/* Features Bento Grid */}
@@ -230,8 +257,17 @@ export default function App() {
               <div className="bg-white text-black rounded-[40px] p-8 md:p-12 shadow-2xl overflow-hidden relative">
                 {/* Mock App Store Header */}
                 <div className="flex flex-col md:flex-row gap-8 items-start mb-12">
-                  <div className="w-32 h-32 md:w-40 md:h-40 bg-zinc-900 rounded-[22.5%] shadow-inner flex items-center justify-center flex-shrink-0 border border-zinc-200">
-                    <Command className="w-16 h-16 text-cyan-400" />
+                  <div className="w-32 h-32 md:w-40 md:h-40 bg-zinc-900 rounded-[22.5%] shadow-inner flex items-center justify-center flex-shrink-0 border border-zinc-200 overflow-hidden relative">
+                    {/* App Icon - Upload your image to the public folder and name it app-icon.png */}
+                    <img 
+                      src="/app-icon.png" 
+                      alt="LogicFlow Icon" 
+                      className="w-full h-full object-cover absolute inset-0 z-10"
+                      onError={(e) => {
+                        e.currentTarget.style.opacity = '0';
+                      }}
+                    />
+                    <Command className="w-16 h-16 text-cyan-400 absolute z-0" />
                   </div>
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">LogicFlow Controller</h1>
