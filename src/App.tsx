@@ -18,7 +18,7 @@ if (typeof window !== 'undefined') {
     api_host: 'https://app.posthog.com',
     autocapture: false, // We'll manually capture events for this demo
     loaded: (posthog) => {
-      if (process.env.NODE_ENV === 'development') posthog.debug(false);
+      if (import.meta.env.DEV) posthog.debug(false);
     }
   });
 }
@@ -27,7 +27,6 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [activeTab, setActiveTab] = useState<'landing' | 'feedback' | 'appstore'>('landing');
-  const [showMakerPanel, setShowMakerPanel] = useState(true);
 
   // Track page views when tabs change
   useEffect(() => {
@@ -326,36 +325,6 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
-
-      {/* ============================================================================
-          MAKER DASHBOARD (Proof of Execution)
-          ============================================================================ */}
-      <AnimatePresence>
-        {showMakerPanel && (
-          <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 right-6 w-80 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl overflow-hidden z-50"
-          >
-            <div className="bg-zinc-800 px-4 py-3 flex items-center justify-between border-b border-zinc-700">
-              <div className="flex items-center gap-2">
-                <LayoutTemplate className="w-4 h-4 text-cyan-400" />
-                <span className="font-semibold text-sm">Launch Checklist Executed</span>
-              </div>
-              <button onClick={() => setShowMakerPanel(false)} className="text-zinc-400 hover:text-white text-xs">Close</button>
-            </div>
-            <div className="p-4 space-y-3 text-sm">
-              <ChecklistItem icon={<LayoutTemplate />} text="Step 0: Waitlist Page" done />
-              <ChecklistItem icon={<BarChart3 />} text="Step 1: App Analytics (PostHog)" done />
-              <ChecklistItem icon={<MessageSquare />} text="Step 2: Feedback Board" done />
-              <ChecklistItem icon={<Mail />} text="Step 3: Email Sequence" done />
-              <ChecklistItem icon={<Apple />} text="Step 4: App Store Listing" done />
-              <ChecklistItem icon={<LayoutTemplate />} text="Step 5: Landing Page" done />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -464,17 +433,6 @@ function FeedbackBoard() {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function ChecklistItem({ icon, text, done }: { icon: React.ReactNode, text: string, done: boolean }) {
-  return (
-    <div className="flex items-center gap-3 text-zinc-300">
-      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center", done ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-500")}>
-        {done ? <CheckCircle2 className="w-4 h-4" /> : React.cloneElement(icon as React.ReactElement<any>, { className: "w-3 h-3" })}
-      </div>
-      <span className={cn(done && "text-zinc-100 font-medium")}>{text}</span>
     </div>
   );
 }
