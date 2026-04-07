@@ -6,13 +6,23 @@ import {
   MessageSquare, ThumbsUp, Apple, BarChart3, Mail, LayoutTemplate,
   Star, Download, ChevronRight, Send
 } from 'lucide-react';
-import { cn } from './lib/utils';
+
+// This replaces the "import { cn } from './lib/utils'" line
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 // REAL FIREBASE IMPORTS
 import { db } from './firebase';
 import { 
   collection, 
   addDoc, 
+  serverTimestamp, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  updateDoc, 
+  doc, 
+  increment 
+} from 'firebase/firestore'; 
   serverTimestamp, 
   query, 
   orderBy, 
