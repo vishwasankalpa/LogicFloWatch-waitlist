@@ -7,7 +7,7 @@ import {
   Star, Download, ChevronRight, Send
 } from 'lucide-react';
 
-// This replaces the "import { cn } from './lib/utils'" line
+// Safe helper for Tailwind classes (replaces the missing lib/utils import)
 const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 // REAL FIREBASE IMPORTS
@@ -15,14 +15,6 @@ import { db } from './firebase';
 import { 
   collection, 
   addDoc, 
-  serverTimestamp, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  updateDoc, 
-  doc, 
-  increment 
-} from 'firebase/firestore'; 
   serverTimestamp, 
   query, 
   orderBy, 
@@ -49,9 +41,6 @@ export default function App() {
     posthog.capture('$pageview', { tab: activeTab });
   }, [activeTab]);
 
-  // ============================================================================
-  // REAL WAITLIST LOGIC
-  // ============================================================================
   const handleJoinWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -59,33 +48,28 @@ export default function App() {
     setStatus('loading');
     
     try {
-      // SAVE TO FIRESTORE
       await addDoc(collection(db, "waitlist"), {
         email: email,
         createdAt: serverTimestamp(),
         userAgent: navigator.userAgent,
         source: 'vercel_app'
       });
-
       posthog.capture('waitlist_joined', { email_domain: email.split('@')[1] });
       setStatus('success');
       setEmail('');
     } catch (error) {
       console.error("Error joining waitlist:", error);
-      alert("Something went wrong. Please try again!");
       setStatus('idle');
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-50 font-sans overflow-x-hidden selection:bg-cyan-500/30">
-      {/* Background Ambient Glow */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/10 blur-[120px]" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-500/10 blur-[120px]" />
       </div>
 
-      {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-5xl mx-auto border-b border-white/10">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('landing')}>
           <div className="w-8 h-8 rounded-xl bg-zinc-900 flex items-center justify-center shadow-lg shadow-cyan-500/20 overflow-hidden relative border border-zinc-800">
@@ -156,16 +140,12 @@ export default function App() {
   );
 }
 
-// ============================================================================
-// REAL FEEDBACK BOARD LOGIC
-// ============================================================================
 function FeedbackBoard() {
   const [ideas, setIdeas] = useState<any[]>([]);
   const [newIdea, setNewIdea] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FETCH IDEAS IN REAL-TIME
   useEffect(() => {
     const q = query(collection(db, "feedback"), orderBy("votes", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -180,7 +160,6 @@ function FeedbackBoard() {
     await updateDoc(ideaRef, {
       votes: increment(1)
     });
-    posthog.capture('feedback_voted', { idea_id: id });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
